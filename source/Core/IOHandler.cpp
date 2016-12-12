@@ -127,7 +127,7 @@ void IOHandlerStack::PrintAsync(Stream *stream, const char *s, size_t len) {
   }
 }
 
-IOHandlerConfirm::IOHandlerConfirm(Debugger &debugger, const char *prompt,
+IOHandlerConfirm::IOHandlerConfirm(Debugger &debugger, llvm::StringRef prompt,
                                    bool default_response)
     : IOHandlerEditline(
           debugger, IOHandler::Type::Confirm,
@@ -293,7 +293,6 @@ IOHandlerEditline::IOHandlerEditline(
     m_editline_ap.reset(new Editline(editline_name, GetInputFILE(),
                                      GetOutputFILE(), GetErrorFILE(),
                                      m_color_prompts));
-    SetBaseLineNumber(m_base_line_number);
     m_editline_ap->SetIsInputCompleteCallback(IsInputCompleteCallback, this);
     m_editline_ap->SetAutoCompleteCallback(AutoCompleteCallback, this);
     // See if the delegate supports fixing indentation
@@ -521,7 +520,6 @@ bool IOHandlerEditline::GetLines(StringList &lines, bool &interrupted) {
 #ifndef LLDB_DISABLE_LIBEDIT
   }
 #endif
-  m_current_lines_ptr = NULL;
   return success;
 }
 
@@ -1849,7 +1847,7 @@ public:
           // Just a timeout from using halfdelay(), check for events
           EventSP event_sp;
           while (listener_sp->PeekAtNextEvent()) {
-            listener_sp->GetNextEvent(event_sp);
+            listener_sp->GetEvent(event_sp, std::chrono::seconds(0));
 
             if (event_sp) {
               Broadcaster *broadcaster = event_sp->GetBroadcaster();
@@ -2424,7 +2422,7 @@ public:
         if (FormatEntity::Format(m_format, strm, &sc, &exe_ctx, nullptr,
                                  nullptr, false, false)) {
           int right_pad = 1;
-          window.PutCStringTruncated(strm.GetString().c_str(), right_pad);
+          window.PutCStringTruncated(strm.GetString().str().c_str(), right_pad);
         }
       }
     }
@@ -2483,7 +2481,7 @@ public:
       if (FormatEntity::Format(m_format, strm, nullptr, &exe_ctx, nullptr,
                                nullptr, false, false)) {
         int right_pad = 1;
-        window.PutCStringTruncated(strm.GetString().c_str(), right_pad);
+        window.PutCStringTruncated(strm.GetString().str().c_str(), right_pad);
       }
     }
   }
@@ -2573,7 +2571,7 @@ public:
       if (FormatEntity::Format(m_format, strm, nullptr, &exe_ctx, nullptr,
                                nullptr, false, false)) {
         int right_pad = 1;
-        window.PutCStringTruncated(strm.GetString().c_str(), right_pad);
+        window.PutCStringTruncated(strm.GetString().str().c_str(), right_pad);
       }
     }
   }
@@ -3314,7 +3312,7 @@ HelpDialogDelegate::HelpDialogDelegate(const char *text,
       StreamString key_description;
       key_description.Printf("%10s - %s", CursesKeyToCString(key->ch),
                              key->description);
-      m_text.AppendString(std::move(key_description.GetString()));
+      m_text.AppendString(key_description.GetString());
     }
   }
 }
@@ -3599,8 +3597,8 @@ public:
               thread_menu_title.Printf(" %s", queue_name);
           }
           menu.AddSubmenu(
-              MenuSP(new Menu(thread_menu_title.GetString().c_str(), nullptr,
-                              menu_char, thread_sp->GetID())));
+              MenuSP(new Menu(thread_menu_title.GetString().str().c_str(),
+                              nullptr, menu_char, thread_sp->GetID())));
         }
       } else if (submenus.size() > 7) {
         // Remove the separator and any other thread submenu items
@@ -3759,7 +3757,7 @@ public:
         if (thread && FormatEntity::Format(m_format, strm, nullptr, &exe_ctx,
                                            nullptr, nullptr, false, false)) {
           window.MoveCursor(40, 0);
-          window.PutCStringTruncated(strm.GetString().c_str(), 1);
+          window.PutCStringTruncated(strm.GetString().str().c_str(), 1);
         }
 
         window.MoveCursor(60, 0);
@@ -3988,7 +3986,7 @@ public:
       window.AttributeOn(A_REVERSE);
       window.MoveCursor(1, 1);
       window.PutChar(' ');
-      window.PutCStringTruncated(m_title.GetString().c_str(), 1);
+      window.PutCStringTruncated(m_title.GetString().str().c_str(), 1);
       int x = window.GetCursorX();
       if (x < window_width - 1) {
         window.Printf("%*s", window_width - x - 1, "");
@@ -4210,7 +4208,7 @@ public:
             strm.Printf("%s", mnemonic);
 
           int right_pad = 1;
-          window.PutCStringTruncated(strm.GetString().c_str(), right_pad);
+          window.PutCStringTruncated(strm.GetData(), right_pad);
 
           if (is_pc_line && frame_sp &&
               frame_sp->GetConcreteFrameIndex() == 0) {
