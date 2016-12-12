@@ -10,6 +10,9 @@
 #include "lldb/Expression/ExpressionSourceCode.h"
 
 #include <algorithm>
+#if defined(_WIN32)
+#include <io.h>
+#endif
 
 #include "Plugins/ExpressionParser/Clang/ClangModulesDeclVendor.h"
 #include "Plugins/ExpressionParser/Clang/ClangPersistentVariables.h"
@@ -236,8 +239,16 @@ bool ExpressionSourceCode::SaveExpressionTextToTempFile(
     break;
   }
 
+#if defined(_WIN32)
+  size_t length = expr_source_path.length() + 1;
+  char *fnTemplate;
+  int err = _mktemp_s(&expr_source_path[0], length);
+  FILE *temp_fd;
+  if (err == 0 && fopen_s(&temp_fd, &expr_source_path[0], "w") == 0) {
+#else
   int temp_fd = mkstemp(&expr_source_path[0]);
   if (temp_fd != -1) {
+#endif
     lldb_private::File file(temp_fd, true);
     const size_t text_len = strlen(text);
     size_t bytes_written = text_len;
@@ -252,6 +263,10 @@ bool ExpressionSourceCode::SaveExpressionTextToTempFile(
     }
     if (!success)
       FileSystem::Unlink(FileSpec(expr_source_path.c_str(), true));
+
+#if defined(_WIN32)
+    fclose(temp_fd);
+#endif
   }
   if (!success)
     expr_source_path.clear();
